@@ -6,24 +6,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
 
-def doc_sim(sentences, topic_terms):
-    nlp = spacy.load('en_core_web_lg')
-
-    def score(sentence):
-        tokens = nlp(' '.join(topic_terms))
-        score_sum = 0
-
-        for token in tokens:
-            score_sum += sum([token.similarity(x) for x in nlp(sentence)])
-        return score_sum / len(sentence)
-
-    scores = [score(x) for x in sentences]
-    return sentences[argmax(scores)]
-
-
 def pipeline(given_file):
     predictor = Predictor.from_path("https://s3-us-west-2.amazonaws.com/allennlp/models/openie-model.2018-08-20.tar.gz")
     phrases_in_file = []
+    sents_in_file = []
 
     def sentences(filename):
         def read_data():
@@ -81,10 +67,38 @@ def pipeline(given_file):
 
         return clusters
 
-    for sentence in sentences(given_file):
-        phrases_in_file.extend(parse_phrases(sentence))
+    sents_in_file = sentences(given_file)
+    # this for loop avoids an expected
+    for sent in sents_in_file:
+        phrases_in_file.extend(parse_phrases(sent))
+    clusters = kmeans(phrases_in_file)
 
-    result_dict = dict()
-    result_dict['clusters'] = kmeans(phrases_in_file)
-    result_dict['phrases'] = phrases_in_file
-    return result_dict
+    result = dict()
+    result['sentences'] = sents_in_file
+    result['phrases'] = phrases_in_file
+    result['clusters'] = clusters
+
+    return result
+
+def pipeline_2(result_dict):
+    key_phrases = []
+
+    def doc_sim(sentences, topic_terms):
+        nlp = spacy.load('en_core_web_lg')
+        # term list to string
+        topic = nlp(' '.join(topic_terms))
+        scores = [topic.similarity(nlp(sentence)) for sentence in sentences]
+        # most similar document
+        return sentences[argmax(scores)]
+
+    for cluster in result_dict['clusters']:
+        key_phrase = doc_sim(result_dict['sentences'], cluster)
+        key_phrases.append(key_phrase)
+
+    return key_phrases
+
+
+if __name__ == '__main__':
+    result = pipeline('sample.txt')
+    k_p = pipeline_2(result)
+    print(k_p)
