@@ -6,12 +6,17 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
 
-def pipeline(given_file):
-    predictor = Predictor.from_path("https://s3-us-west-2.amazonaws.com/allennlp/models/openie-model.2018-08-20.tar.gz")
+def pipeline(given_file) -> dict:
+    """ Returns the sentences, phrases, and groups of topic terms
+        for a given text file. """
+
+    predictor = Predictor.from_path(
+        "https://s3-us-west-2.amazonaws.com/allennlp/models/openie-model.2018-08-20.tar.gz")
     phrases_in_file = []
     sents_in_file = []
 
     def sentences(filename):
+        """ Uses Spacy's processing pipeline to return given text file as sentences. """
         def read_data():
             with open(filename, "r") as f:
                 string = f.read()
@@ -27,6 +32,8 @@ def pipeline(given_file):
         return [str(a) for a in doc.sents]
 
     def parse_phrases(sentence):
+        """ Applies AllenNLP's OpenIE to a sentence, and returns the predictor's
+            generated prepositions, stripped of all formatting and tags. """
         result = predictor.predict(sentence)
         phrases = []
         for thing in result['verbs']:
@@ -46,6 +53,7 @@ def pipeline(given_file):
         return phrases
 
     def kmeans(corpus) -> list:
+        """ Clusters the corpus and returns the top terms per cluster. """
         vectorizer = TfidfVectorizer(max_features=13)
         X = vectorizer.fit_transform(corpus)
 
@@ -80,7 +88,9 @@ def pipeline(given_file):
 
     return result
 
-def pipeline_2(result_dict):
+def pipeline_2(result_dict) -> list:
+    """ Returns the phrases closest to the topic terms within given dictionary. """
+
     key_phrases = []
 
     def doc_sim(sentences, topic_terms):
